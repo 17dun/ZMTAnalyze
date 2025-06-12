@@ -254,13 +254,16 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
   if(ratio.threshold===''||ratio.threshold==null||ratio.threshold===undefined){
     ratio.threshold=1;
   }
-  threshold = threshold * ratio.threshold/50;
+  threshold = threshold * ratio.threshold/20;
   
   console.log( ratio.threshold)
 
 
   const highlights = [];
   items.forEach((item, index) => {
+    // 设置所有作品透明度为0.3
+    item.style.opacity = '0.3';
+    
     if (likeCounts[index] > threshold) {
       highlights.push({
         title: item.dataset.title,
@@ -269,8 +272,9 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
       });
       
       // 高亮显示异常作品
-      item.style.border = '2px solid red';
-      item.style.boxShadow = '0 0 10px rgba(255,0,0,0.5)';
+      item.style.border = '4px solid red';
+      item.style.boxShadow = '0 0 15px rgba(255,0,0,0.8)';
+      item.style.opacity = '1';
     }
   });
   if(!sg){
@@ -383,6 +387,7 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
   // 将按钮添加到body而不是resultDiv
   document.body.appendChild(toggleBtn);
 
+
   // 账号评分算法
   // Move the account score calculation before it's used in the HTML
   function calculateAccountScore(avgLikes, stdDev, followers, likes) {
@@ -482,7 +487,8 @@ const accountScore = calculateAccountScore(
 
 // Now generate the HTML with the calculated score
 resultDiv.innerHTML = `
-<style>
+  
+  <style>
       #analysis-result {
       font-size: 14px;
       }
@@ -556,8 +562,9 @@ resultDiv.innerHTML = `
     <p>互动率: ${accountScore.engagementRate}</p>
     <p>内容稳定性: ${accountScore.likeConsistency}分</p>
     <p>受欢迎度: ${accountScore.popularityScore}分</p>
-    
-    <h4>高点赞作品分析</h4>
+    <div id="likesChartd" style="width:100%; height:200px; margin-bottom:20px;  border-bottom:1px solid #eee;">
+    </div>
+    <h4>近期相对高点赞作品</h4>
     ${avg ? `<p>平均点赞数: ${avg.toFixed(0)}</p>` : ''}
     ${stdDev ? `<p>标准差: ${stdDev.toFixed(0)}</p>` : ''}
     <p>高点赞阈值: ${threshold.toFixed(0)}</p>
@@ -568,6 +575,61 @@ resultDiv.innerHTML = `
     </div>
   `;
   document.body.prepend(resultDiv);
+
+  // 创建折线图容器
+  const chartContainer = document.createElement('div');
+  chartContainer.style.marginBottom = '20px';
+  const canvas = document.createElement('canvas');
+  canvas.width = 320;
+  canvas.height = 200;
+  canvas.style.width = '100%';
+  canvas.style.maxWidth = '320px';
+  canvas.style.display = 'block';
+  chartContainer.appendChild(canvas);
+  // 查找id为likesChartd的div元素
+const likesChartdDiv = document.getElementById('likesChartd');
+if (likesChartdDiv) {
+  // 如果存在，则将chartContainer渲染到该div中
+  likesChartdDiv.appendChild(chartContainer);
+} else {
+  // 如果不存在，则给出警告信息
+  console.warn('未找到id为likesChartd的div元素，无法渲染图表容器');
+}
+  // 绘制折线图
+  const ctx = canvas.getContext('2d');
+  const maxLike = Math.max(...likeCounts);
+  const minLike = Math.min(...likeCounts);
+  const range = maxLike - minLike;
+  const padding = 5;
+  
+  // 绘制坐标轴
+  ctx.beginPath();
+  ctx.moveTo(padding, padding);
+  ctx.lineTo(padding, canvas.height - padding);
+  ctx.lineTo(canvas.width - padding, canvas.height - padding);
+  ctx.strokeStyle = '#666';
+  ctx.stroke();
+  
+  // 绘制数据点
+  ctx.strokeStyle = '#4285f4';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  likeCounts.slice().reverse().forEach((count, i) => {
+    const x = padding + (i / (likeCounts.length - 1)) * (canvas.width - 2 * padding);
+    const y = canvas.height - padding - ((count - minLike) / range) * (canvas.height - 2 * padding);
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    // 绘制数据点
+    ctx.fillStyle = '#4285f4';
+    ctx.beginPath();
+    ctx.arc(x, y+1, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+ 
 
   // 在添加内容后，使用setTimeout触发动画
 setTimeout(() => {
