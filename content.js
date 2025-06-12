@@ -170,9 +170,50 @@ function analyzeDouyin(sg) {
 
   // 立即开始检查页面加载
   waitForItems();
+  
+  // 监听URL和路由变化
+  let lastUrl = window.location.href;
+  const observer = new MutationObserver(() => {
+    if (window.location.href !== lastUrl) {
+      lastUrl = window.location.href;
+      const resultDiv = document.querySelector('#analysis-result-container');
+      if (resultDiv) {
+        resultDiv.remove();
+      }
+      const toggleBtn = document.querySelector('#analysis-toggle-btn');
+      if (toggleBtn) {
+        toggleBtn.remove();
+      }
+    }
+  });
+  
+  // 监听body属性变化（路由和URL变化通常会改变body的class或属性）
+  observer.observe(document.body, {
+    attributes: true,
+    childList: true,
+    subtree: true
+  });
+  
+  // 额外监听hashchange事件（单页应用常用）
+  window.addEventListener('hashchange', () => {
+    const resultDiv = document.querySelector('#analysis-result-container');
+    if (resultDiv) {
+      resultDiv.remove();
+    }
+    const toggleBtn = document.querySelector('#analysis-toggle-btn');
+    if (toggleBtn) {
+      toggleBtn.remove();
+    }
+  });
 }
 
 async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
+  // 清除之前的高亮效果
+  items.forEach(item => {
+    item.style.border = '';
+    item.style.boxShadow = '';
+  });
+  
   if (!sg&&likeCounts.length === 0) {
     // 仅发送完成状态
     chrome.runtime.sendMessage({
@@ -207,14 +248,17 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
 
 
   let  ratio = await new Promise(resolve => {
-    chrome.storage.sync.get(['ratio'], resolve);
+    chrome.storage.sync.get(['threshold'], resolve);
   });
 
-  if(ratio.ratio===''||ratio.ratio==null||ratio.ratio===undefined){
-    ratio.ratio=1;
+  if(ratio.threshold===''||ratio.threshold==null||ratio.threshold===undefined){
+    ratio.threshold=1;
   }
-  threshold = threshold * ratio.ratio;
+  threshold = threshold * ratio.threshold/50;
   
+  console.log( ratio.threshold)
+
+
   const highlights = [];
   items.forEach((item, index) => {
     if (likeCounts[index] > threshold) {
@@ -256,8 +300,13 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
 
   // 修改结果展示部分的样式
   let resultDiv = document.querySelector('#analysis-result-container');
-if (!resultDiv) {
-    resultDiv = document.createElement('div');
+  // 如果结果容器已存在，先移除它
+  if (resultDiv) {
+    resultDiv.remove();
+  }
+  
+  // 创建新的结果容器
+  resultDiv = document.createElement('div');
     resultDiv.id = 'analysis-result-container';
     resultDiv.style.position = 'fixed';
     resultDiv.style.top = '0';
@@ -519,7 +568,7 @@ resultDiv.innerHTML = `
     </div>
   `;
   document.body.prepend(resultDiv);
-}
+
   // 在添加内容后，使用setTimeout触发动画
 setTimeout(() => {
   resultDiv.style.transform = 'translateX(0)'; // 滑入屏幕

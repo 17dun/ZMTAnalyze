@@ -1,19 +1,19 @@
-// 保存配置
-function showSuccessMessage() {
-  const message = document.createElement('div');
-  message.textContent = '保存成功！';
-  message.style.position = 'fixed';
-  message.style.top = '50%';
-  message.style.left = '50%';
-  message.style.transform = 'translate(-50%, -50%)';
-  message.style.backgroundColor = '#4CAF50';
-  message.style.color = 'white';
-  message.style.padding = '10px 20px';
-  message.style.borderRadius = '4px';
-  message.style.zIndex = '1000';
-  document.body.appendChild(message);
-  setTimeout(() => message.remove(), 2000);
-}
+// // 保存配置
+// function showSuccessMessage() {
+//   const message = document.createElement('div');
+//   message.textContent = '保存成功！';
+//   message.style.position = 'fixed';
+//   message.style.top = '50%';
+//   message.style.left = '50%';
+//   message.style.transform = 'translate(-50%, -50%)';
+//   message.style.backgroundColor = '#4CAF50';
+//   message.style.color = 'white';
+//   message.style.padding = '10px 20px';
+//   message.style.borderRadius = '4px';
+//   message.style.zIndex = '1000';
+//   document.body.appendChild(message);
+//   setTimeout(() => message.remove(), 2000);
+// }
 
 // 分析按钮点击事件
 document.getElementById('analyze').addEventListener('click', async () => {
@@ -34,18 +34,26 @@ document.getElementById('analyze').addEventListener('click', async () => {
   }
 });
 
-// 保存按钮点击事件
-document.getElementById('saveBtn').addEventListener('click', () => {
+// 自动保存配置
+function saveSettings() {
   const autoAnalyze = document.getElementById('autoAnalyze').checked;
   const threshold = document.getElementById('threshold').value;
   
-  // 存储到chrome.storage
   chrome.storage.sync.set({
     autoAnalyze,
     threshold
   }, () => {
-    showSuccessMessage();
+    
   });
+}
+
+// 自动分析模式切换事件
+document.getElementById('autoAnalyze').addEventListener('change', saveSettings);
+
+// 滑块值变化事件
+document.getElementById('threshold').addEventListener('input', (e) => {
+  document.querySelector('.value-display').textContent = `${e.target.value}%`;
+  saveSettings();
 });
 
 // 加载保存的设置
