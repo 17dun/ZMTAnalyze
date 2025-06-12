@@ -119,7 +119,7 @@ function analyzeDouyin(sg) {
     const items = postList.querySelectorAll('li');
     if (items.length === 0 && retryCount < maxRetries) {
       retryCount++;
-      setTimeout(waitForItems, 1000); // 增加等待时间到1秒
+      setTimeout(waitForItems, 2000); // 增加等待时间到2秒
       return;
     }
 
