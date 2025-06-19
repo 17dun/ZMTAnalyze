@@ -1,14 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "meabot——自媒体运营神器",
+  "name": "meabot—自媒体自动运营神器",
   "version": "1.0",
-  "description": "一键拆解自媒体账号质量，支持小红书和抖音，进行综合评分，账号风格匹配，高粉低赞账号挖掘，互动率，内容稳定性，受欢迎程度等，自动挖掘账号中近期高赞作品",
+  "description": "一键拆解自媒体账号质量，支持小红书和抖音，进行综合评分，账号风格匹配，近期作品趋势，高粉低赞账号挖掘，互动率，内容稳定性，受欢迎程度等，自动挖掘账号中近期高赞作品",
   "permissions": [
-    "activeTab",
     "scripting",
     "storage",
-    "tabs",
-    "alarms"
+    "tabs"
   ],
   "host_permissions": [
     "https://*.xiaohongshu.com/*",
