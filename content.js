@@ -141,38 +141,30 @@ function getUserInfoDouyin() {
   const userInfo = {};
   
   // 获取抖音号和昵称
-  const nameElement = document.querySelector('.a34DMvQe');
-  if (nameElement) {
-    userInfo.nickname = nameElement.textContent.trim();
-    
-    // 获取抖音号
-    const douyinIdElement = document.querySelector('.TVGQz3SI');
-    if (douyinIdElement) {
-      userInfo.douyinId = douyinIdElement.textContent.replace('抖音号：', '').trim();
-    }
+  const usernameElement = document.querySelector('.GMEdHsXq span span span span');
+  const followersElement = document.querySelector('[data-e2e="user-info-fans"] .C1cxu0Vq');
+  const likesElement = document.querySelector('[data-e2e="user-info-like"] .C1cxu0Vq');
+  const douyinIdElement = document.querySelector('.OcCvtZ2a');
+  const locationElement = document.querySelector('.DtUnx4ER');
+  const descriptionElement = document.querySelector('.JMYmWBA1 span span span span span');
+  
+  if (usernameElement) {
+    userInfo.nickname = usernameElement.textContent.trim();
   }
-  
-  // 获取头像
-  const avatarElement = document.querySelector('.avatar-wrapper img');
-  if (avatarElement) {
-    userInfo.avatar = avatarElement.src;
+  if (douyinIdElement) {
+    userInfo.douyinId = douyinIdElement.textContent.trim();
   }
-  
-  // 获取粉丝数和获赞数
-  const fansElement = document.querySelector('[data-e2e="user-info-fans"] .cIss_G7b');
-  const likesElement = document.querySelector('[data-e2e="user-info-like"] .cIss_G7b');
-  
-  if (fansElement) {
-    userInfo.followers = fansElement.textContent.trim();
+  if (followersElement) {
+    userInfo.followers = followersElement.textContent.trim();
   }
   if (likesElement) {
     userInfo.likes = likesElement.textContent.trim();
   }
-  
-  // 获取用户简介
-  const descElement = document.querySelector('[data-e2e="user-bio"]');
-  if (descElement) {
-    userInfo.description = descElement.textContent.trim();
+  if (descriptionElement) {
+    userInfo.description = descriptionElement.textContent.trim();
+  }
+  if (locationElement) {
+    userInfo.location = locationElement.textContent.trim();
   }
   
   return userInfo;
@@ -186,17 +178,13 @@ function analyzeDouyin(sg) {
     return;
   }
   const userInfo = getUserInfoDouyin();
-  console.log('抖音原始数据:', {
-    userInfo,
-    postList: postList.outerHTML
-  });
 
   // 等待页面加载完成
   let retryCount = 0;
   const maxRetries = 10; // 最大重试次数
 
   const waitForItems = () => {
-    const items = postList.querySelectorAll('li');
+    const items = postList.querySelectorAll('li.wqW3g_Kl.WPzYSlFQ.OguQAD1e');
     if (items.length === 0 && retryCount < maxRetries) {
       retryCount++;
       setTimeout(waitForItems, 2000); // 增加等待时间到2秒
@@ -205,7 +193,8 @@ function analyzeDouyin(sg) {
 
     const likeCounts = [];
     const userInfo = getUserInfoDouyin();
-    
+    const itemsData = [];
+
     // 如果超过最大重试次数仍未找到items，返回空结果
     if (items.length === 0) {
       processAnalysisResults([], [], userInfo,sg);
@@ -215,9 +204,9 @@ function analyzeDouyin(sg) {
     // 提取抖音点赞数和标题
     items.forEach(item => {
       // 从点赞区域获取点赞数 - 更新选择器
-      const likeArea = item.querySelector('.YzDRRUWc.author-card-user-video-like');
+      const likeArea = item.querySelector('span.uWre3Wbh.author-card-user-video-like');
       if (likeArea) {
-        const likeText = likeArea.querySelector('.b3Dh2ia8')?.textContent;
+        const likeText = likeArea.querySelector('span.BgCg_ebQ')?.textContent;
         if (likeText) {
           // 处理点赞数格式（1.8万→18000）
           let likes = 0;
@@ -229,28 +218,33 @@ function analyzeDouyin(sg) {
             likes = parseInt(likeText.replace(/[^\d]/g, '')) || 0;
           }
           likeCounts.push(likes);
-          
-          // 存储标题到元素的dataset中
-          const titleElement = item.querySelector('p:first-of-type');
-          if (titleElement) {
-            item.dataset.title = titleElement.textContent;
-          }
+
           // 获取抖音标题和链接
-          item.dataset.title = item.querySelector('.ztA3qIFr')?.textContent || '无标题';
-          const linkElement = item.querySelector('a.hY8lWHgA');
-          if (linkElement) {
-            item.dataset.url = linkElement.href;
-          }
+          const linkElement = item.querySelector('a.uz1VJwFY.TyuBARdT.IdxE71f8');
+          const url = linkElement ? new URL(linkElement.href, window.location.origin).href : '';
+          const title = item.querySelector('p.EtttsrEw')?.textContent || item.querySelector('p.eJFBAbdI.H4IE9Xgd')?.textContent || '无标题';
+
+          itemsData.push({
+            title,
+            url,
+            likes: likeText
+          });
         }
       }
     });
+
+    const douyinData = {
+      userInfo,
+      items: itemsData
+    };
+    console.log('抖音原始数据:', douyinData);
 
     processAnalysisResults(items, likeCounts, userInfo,sg);
   };
 
   // 立即开始检查页面加载
   waitForItems();
-  
+
   // 监听URL和路由变化
   let lastUrl = window.location.href;
   const observer = new MutationObserver(() => {
@@ -266,14 +260,14 @@ function analyzeDouyin(sg) {
       }
     }
   });
-  
+
   // 监听body属性变化（路由和URL变化通常会改变body的class或属性）
   observer.observe(document.body, {
     attributes: true,
     childList: true,
     subtree: true
   });
-  
+
   // 额外监听hashchange事件（单页应用常用）
   window.addEventListener('hashchange', () => {
     const resultDiv = document.querySelector('#analysis-result-container');
