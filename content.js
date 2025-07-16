@@ -35,13 +35,34 @@ function getUserInfoXiaohongshu() {
     userInfo.likes = userInteractions[2].textContent.trim();
   }
   
+  // 获取用户简介
+  const descElement = document.querySelector('.user-desc');
+  if (descElement) {
+    userInfo.description = descElement.textContent.trim();
+  }
+  
+  // 获取用户标签
+  const tagElements = document.querySelectorAll('.user-tags .tag, .user-tags .tag-item');
+  if (tagElements.length > 0) {
+    userInfo.tags = Array.from(tagElements).map(tag => {
+      // 处理性别标签
+      const genderIcon = tag.querySelector('use');
+      if (genderIcon && genderIcon.hasAttribute('xlink:href')) {
+        const gender = genderIcon.getAttribute('xlink:href') === '#female' ? '女' : '男';
+        return `性别:${gender}`;
+      }
+      return tag.textContent.trim();
+    });
+  }
+  
   return userInfo;
 }
 
-function analyzeXiaohongshu(sg) {
+async function analyzeXiaohongshu(sg) {
   const items = document.querySelectorAll('.note-item');
   const likeCounts = [];
   const userInfo = getUserInfoXiaohongshu();
+  
   
   items.forEach(item => {
     const likeText = item.querySelector('.count')?.textContent;
@@ -55,15 +76,63 @@ function analyzeXiaohongshu(sg) {
       }
       likeCounts.push(likes);
       // 获取小红书标题和链接
-      item.dataset.title = item.querySelector('.footer .title span')?.textContent || '无标题';
-      const linkElement = item.querySelector('a.cover.mask.ld');
+      const titleElement = item.querySelector('.footer .title span') || item.querySelector('.title');
+      item.dataset.title = titleElement?.textContent.trim() || '无标题';
+      
+      const linkElement = item.querySelector('a.cover.mask.ld') || item.querySelector('a[href^="/note/"]');
       if (linkElement) {
-        item.dataset.url = linkElement.href;
+        item.dataset.url = new URL(linkElement.href, window.location.origin).href;
       }
     } else {
       likeCounts.push(0);  // 处理空字符串情况
     }
   });
+
+  const xhsData = {
+    userInfo,
+    items: Array.from(items).map(item => ({
+      title: item.dataset.title,
+      url: item.dataset.url,
+      likes: item.querySelector('.count')?.textContent
+    }))
+  };
+  console.log('小红书原始数据:', xhsData);
+  
+  // 调用coze分析API
+  try {
+    const response = await fetch('https://api.coze.cn/workflows/runs', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer YOUR_API_TOKEN'
+      },
+      body: JSON.stringify({
+        workflow_id: '7527692968649424934',
+        parameters: {
+          input: xhsData
+        },
+        stream: true
+      })
+    });
+    
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value);
+      try {
+        const data = JSON.parse(chunk);
+        console.log('实时分析结果:', data);
+      } catch (e) {
+        console.log('收到数据块:', chunk);
+      }
+    }
+  } catch (error) {
+    console.error('调用Coze API出错:', error);
+  }
   
   processAnalysisResults(items, likeCounts, userInfo,sg);
 }
@@ -100,6 +169,12 @@ function getUserInfoDouyin() {
     userInfo.likes = likesElement.textContent.trim();
   }
   
+  // 获取用户简介
+  const descElement = document.querySelector('[data-e2e="user-bio"]');
+  if (descElement) {
+    userInfo.description = descElement.textContent.trim();
+  }
+  
   return userInfo;
 }
 
@@ -110,6 +185,11 @@ function analyzeDouyin(sg) {
     processAnalysisResults([], [], {},sg);
     return;
   }
+  const userInfo = getUserInfoDouyin();
+  console.log('抖音原始数据:', {
+    userInfo,
+    postList: postList.outerHTML
+  });
 
   // 等待页面加载完成
   let retryCount = 0;
@@ -408,7 +488,6 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
     const likesNum = parseSocialNumber(likes) || 0;
     // 1. 修正互动率计算
     const engagementRate = Math.min(1, avgLikes / followersNum); // 限制最大为100%
-    console.log(stdDev,avgLikes);
     // 2. 改进的内容稳定性计算 (确保1-100分布)
     const normalizedStdDev = stdDev / (avgLikes + 1); // 防止除以0
     const likeConsistency = Math.max(1, Math.min(100, 100 * Math.exp(-0.5 * normalizedStdDev)));
