@@ -9,6 +9,7 @@ function analyze(sg) {
   }
 }
 
+
 function getUserInfoXiaohongshu() {
   const userInfo = {};
   // 获取用户名和小红书号
@@ -287,20 +288,19 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
       
   }
 
+
   
   // 封装 API 调用为异步函数
-  const fetchApiData = async (sourceData) => {
-    const cacheKey = sourceData.userInfo.xhsId ? `xhs-${sourceData.userInfo.xhsId}` : 
-                     sourceData.userInfo.douyinId ? `dy-${sourceData.userInfo.douyinId}` : null;
-    
+  const fetchApiData = async (sourceData,  type='normal') => {
+    // 生成包含类型的缓存键
+    const cacheKey = sourceData.userInfo.xhsId ? `xhs-${sourceData.userInfo.xhsId}-${type}` : 
+                     sourceData.userInfo.douyinId ? `dy-${sourceData.userInfo.douyinId}-${type}` : null;
+
     if (cacheKey) {
       const cachedData = await new Promise(resolve => {
         chrome.storage.sync.get([cacheKey], resolve);
       });
 
-      
-  
-      
       if (cachedData[cacheKey]) {
         hasCache = true;
         const data = cachedData[cacheKey];
@@ -308,19 +308,19 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
         return data;
       }
     }
-    
+
     try {
       const response = await fetch('http://localhost:7001/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: sourceData })
+        body: JSON.stringify({ input: sourceData, type })
       });
       const data = await response.json();
-      
+
       if (cacheKey) {
         chrome.storage.sync.set({ [cacheKey]: data });
       }
-      
+
       document.getElementById('apiData').innerHTML = parsedData(data.data);
       document.getElementById('showDeepButton').style.display = 'block';
       return data;
@@ -328,6 +328,29 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
       console.error('调用Coze API出错:', error);
       return { error: error.message };
     }
+  }
+
+  // async function fetchDeepAnalysis() {
+  //   try {
+  //     const response = await fetch('http://localhost:7001/run', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({ input: sourceData, type: 'deep' })
+  //     });
+  //     const data = await response.json();
+  //     document.getElementById('apiData').innerHTML = data.result;
+  //   } catch (error) {
+  //     console.error('Error:', error);
+  //   }
+  // }
+  // 在processAnalysisResults函数中修改按钮绑定方式
+  
+  
+  
+  function fetchDeepAnalysis() {
+    fetchApiData(sourceData,'deep').then(data => {
+      document.getElementById('deepAnalysis').innerHTML = parsedData(data.data);
+    }); 
   }
   
   // 发起异步调用，不等待结果
@@ -701,6 +724,9 @@ resultDiv.innerHTML = `
       <span style="color:red">后台正在扫描分析中，数据即将呈现....</span>
     </div>`}
     <button id="showDeepButton" style="display:${hasCache ? 'block' : 'none'}">深度洞察</button>
+  
+    
+    
 
     <h4>账号质量评分</h4>
     <p>综合评分: ${accountScore.score}分 ${accountScore.isLowFansHighLikes ? '(低粉高赞账号)' : ''}</p>
@@ -726,6 +752,8 @@ resultDiv.innerHTML = `
     </div>
   `;
   document.body.prepend(resultDiv);
+  document.getElementById('showDeepButton').addEventListener('click', fetchDeepAnalysis);
+
 
   // 创建折线图容器
   const chartContainer = document.createElement('div');
