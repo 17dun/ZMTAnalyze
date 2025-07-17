@@ -88,52 +88,6 @@ async function analyzeXiaohongshu(sg) {
     }
   });
 
-  const xhsData = {
-    userInfo,
-    items: Array.from(items).map(item => ({
-      title: item.dataset.title,
-      url: item.dataset.url,
-      likes: item.querySelector('.count')?.textContent
-    }))
-  };
-  console.log('小红书原始数据:', xhsData);
-  
-  // 调用coze分析API
-  try {
-    const response = await fetch('https://api.coze.cn/workflows/runs', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer YOUR_API_TOKEN'
-      },
-      body: JSON.stringify({
-        workflow_id: '7527692968649424934',
-        parameters: {
-          input: xhsData
-        },
-        stream: true
-      })
-    });
-    
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      
-      const chunk = decoder.decode(value);
-      try {
-        const data = JSON.parse(chunk);
-        console.log('实时分析结果:', data);
-      } catch (e) {
-        console.log('收到数据块:', chunk);
-      }
-    }
-  } catch (error) {
-    console.error('调用Coze API出错:', error);
-  }
-  
   processAnalysisResults(items, likeCounts, userInfo,sg);
 }
 
@@ -287,6 +241,80 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
     item.style.border = '';
     item.style.boxShadow = '';
   });
+
+  if (!sg && likeCounts.length === 0) {
+    // 仅发送完成状态
+    chrome.runtime.sendMessage({ type: 'analysisComplete', success: false });
+    return;
+  }
+
+  // 根据数据来源判断是抖音还是小红书
+  const isDouyin = Object.hasOwnProperty.call(userInfo, 'douyinId');
+  const sourceData = isDouyin ? {
+    userInfo,
+    items: Array.from(items).map(item => {
+      const linkElement = item.querySelector('a.uz1VJwFY.TyuBARdT.IdxE71f8');
+      const url = linkElement ? new URL(linkElement.href, window.location.origin).href : '';
+      const title = item.querySelector('p.EtttsrEw')?.textContent || item.querySelector('p.eJFBAbdI.H4IE9Xgd')?.textContent || '无标题';
+      const likeArea = item.querySelector('span.uWre3Wbh.author-card-user-video-like');
+      const likeText = likeArea ? likeArea.querySelector('span.BgCg_ebQ')?.textContent : '';
+      return {
+        title,
+        url,
+        likes: likeText
+      };
+    })
+  } : {
+    userInfo,
+    items: Array.from(items).map(item => ({ 
+      title: item.dataset.title, 
+      url: item.dataset.url, 
+      likes: item.querySelector('.count')?.textContent 
+    }))
+  };
+
+  console.log(isDouyin ? '抖音原始数据:' : '小红书原始数据:', sourceData);
+  let apiData;
+  const parsedData = (data)=>{
+      const markdownText = JSON.stringify(data.output_d||data.output_s, null, 2);
+      console.log(markdownText); 
+      // 去除 markdownText 开头和结尾的双引号
+      let parsedText = markdownText.replace(/^"|"$/g, '');
+      parsedText = parsedText.replace(/- /gm, '<div style="margin-bottom: 10px;"></div>');
+      parsedText = parsedText.replace(/\\n/g, '<div style="margin-bottom: 10px;"></div>');
+      parsedText = parsedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      return parsedText;
+      
+  }
+
+  
+  // 封装 API 调用为异步函数
+  const fetchApiData = async (sourceData) => {
+    try {
+      const response = await fetch('http://localhost:7001/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: sourceData })
+      });
+      console.log('调用成功');
+      const data = await response.json();
+      console.log('data',data)
+       console.log('parsedData',parsedData(data.data))
+      document.getElementById('apiData').innerHTML =parsedData(data.data);
+
+      document.getElementById('showDeepButton').style.display ='block'
+      
+      console.log('Coze API返回结果:', data);
+      
+      return data;
+    } catch (error) {
+      console.error('调用Coze API出错:', error);
+      return { error: error.message };
+    }
+  }
+  
+  // 发起异步调用，不等待结果
+  const apiPromise = fetchApiData(sourceData);
   
   if (!sg&&likeCounts.length === 0) {
     // 仅发送完成状态
@@ -562,6 +590,25 @@ const accountScore = calculateAccountScore(
 resultDiv.innerHTML = `
   
   <style>
+      button {
+      margin-top: 10px;
+      padding: 8px;
+      background: #2196F3;
+      color: white;
+      border: none;
+      width: 100%;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0b86eb;
+    }
+
+    button:active {
+      transform: scale(0.98);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
       #analysis-result {
       font-size: 14px;
       }
@@ -627,9 +674,29 @@ resultDiv.innerHTML = `
     ${userInfo.nickname ? `<p>昵称: ${userInfo.nickname}</p>` : ''}
     ${userInfo.followers ? `<p>粉丝数: ${userInfo.followers}</p>` : ''}
     ${userInfo.likes ? `<p>获赞/收藏: ${userInfo.likes}</p>` : ''}
-    
+    <h4>详细维度拆解</h4>
+      <div id="apiData">
+      <style>
+        .loading {
+          width: 20px;
+          height: 20px;
+          border: 3px solid rgba(0, 0, 0, 0.1);
+          border-radius: 50%;
+          border-top-color: #3498db;
+          animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      </style>
+      <div class="loading"></div>
+      <span style="color:red">后台正在扫描分析中，数据即将呈现....</span>
+    </div>
+    <button id="showDeepButton" style="display:none">深度洞察</button>
+
     <h4>账号质量评分</h4>
     <p>综合评分: ${accountScore.score}分 ${accountScore.isLowFansHighLikes ? '(低粉高赞账号)' : ''}</p>
+   
     <p>账号风格: <strong>${accountScore.accountStyle}</strong>(${accountScore.accountStyleDesc})</p>
     <p>是否低粉高赞号: ${accountScore.isLowFansHighLikes? '是': '否'}</p>
     <p>互动率: ${accountScore.engagementRate}</p>
@@ -645,6 +712,9 @@ resultDiv.innerHTML = `
     <ul>
       ${highlights.map(h => `<li><a href="${h.url}" target="_blank">${h.title}</a> - ${h.likes}点赞</li>`).join('')}
     </ul>
+   
+      
+    </div>
     </div>
   `;
   document.body.prepend(resultDiv);
