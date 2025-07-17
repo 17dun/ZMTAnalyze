@@ -337,10 +337,7 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
   
   // 根据数据分布动态调整阈值
   let threshold;
-  if (belowAvgCount > aboveAvgCount * 2) {
-    // 如果大部分数据低于平均值，使用更宽松的阈值
-    threshold = avg - 0.3 * stdDev;
-  } else if (aboveAvgCount > belowAvgCount * 2) {
+  if (aboveAvgCount > belowAvgCount * 2) {
     // 如果大部分数据高于平均值，使用更严格的阈值
     threshold = avg + 1.0 * stdDev;
   } else {
@@ -348,17 +345,15 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
     threshold = avg + 0.5 * stdDev;
   }
 
-
   let  ratio = await new Promise(resolve => {
     chrome.storage.sync.get(['threshold'], resolve);
   });
 
   if(ratio.threshold===''||ratio.threshold==null||ratio.threshold===undefined){
-    ratio.threshold=1;
+    ratio.threshold=50;
   }
-  threshold = threshold * ratio.threshold/20;
+  threshold = threshold * ratio.threshold/100;
   
-  console.log( ratio.threshold)
 
 
   const highlights = [];
