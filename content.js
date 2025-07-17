@@ -352,6 +352,27 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
       document.getElementById('deepAnalysis').innerHTML = parsedData(data.data);
     }); 
   }
+
+
+  // 清除当前账号缓存（normal和deep类型）
+const clearCache = async () => {
+  const xhsId = sourceData?.userInfo?.xhsId;
+  const douyinId = sourceData?.userInfo?.douyinId;
+  if (!xhsId && !douyinId) {
+    alert('未检测到当前账号信息');
+    return;
+  }
+  const cacheKeys = [];
+  if (xhsId) {
+    cacheKeys.push(`xhs-${xhsId}-normal`, `xhs-${xhsId}-deep`);
+  }
+  if (douyinId) {
+    cacheKeys.push(`dy-${douyinId}-normal`, `dy-${douyinId}-deep`);
+  }
+  await chrome.storage.sync.remove(cacheKeys);
+  alert('已清除当前账号缓存（含深度分析缓存）');
+}
+
   
   // 发起异步调用，不等待结果
   const apiPromise = fetchApiData(sourceData);
@@ -724,9 +745,7 @@ resultDiv.innerHTML = `
       <span style="color:red">后台正在扫描分析中，数据即将呈现....</span>
     </div>`}
     <button id="showDeepButton" style="display:${hasCache ? 'block' : 'none'}">深度洞察</button>
-  
-    
-    
+    ${hasCache&&`<button id="clearCacheButton" style="margin:10px 0; padding: 8px 16px; background: #ff4d4f; color: white; border: none; border-radius: 4px; cursor: pointer">清除当前账号缓存</button>`}
 
     <h4>账号质量评分</h4>
     <p>综合评分: ${accountScore.score}分 ${accountScore.isLowFansHighLikes ? '(低粉高赞账号)' : ''}</p>
@@ -753,7 +772,7 @@ resultDiv.innerHTML = `
   `;
   document.body.prepend(resultDiv);
   document.getElementById('showDeepButton').addEventListener('click', fetchDeepAnalysis);
-
+document.getElementById('clearCacheButton').addEventListener('click', clearCache);
 
   // 创建折线图容器
   const chartContainer = document.createElement('div');
