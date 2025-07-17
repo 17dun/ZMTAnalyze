@@ -274,10 +274,10 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
   };
 
   console.log(isDouyin ? '抖音原始数据:' : '小红书原始数据:', sourceData);
-  let apiData;
+  let hasCache = false; 
+  let cacheData;
   const parsedData = (data)=>{
       const markdownText = JSON.stringify(data.output_d||data.output_s, null, 2);
-      console.log(markdownText); 
       // 去除 markdownText 开头和结尾的双引号
       let parsedText = markdownText.replace(/^"|"$/g, '');
       parsedText = parsedText.replace(/- /gm, '<div style="margin-bottom: 10px;"></div>');
@@ -290,22 +290,39 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
   
   // 封装 API 调用为异步函数
   const fetchApiData = async (sourceData) => {
+    const cacheKey = sourceData.userInfo.xhsId ? `xhs-${sourceData.userInfo.xhsId}` : 
+                     sourceData.userInfo.douyinId ? `dy-${sourceData.userInfo.douyinId}` : null;
+    
+    if (cacheKey) {
+      const cachedData = await new Promise(resolve => {
+        chrome.storage.sync.get([cacheKey], resolve);
+      });
+
+      
+  
+      
+      if (cachedData[cacheKey]) {
+        hasCache = true;
+        const data = cachedData[cacheKey];
+        cacheData = parsedData(data.data);
+        return data;
+      }
+    }
+    
     try {
       const response = await fetch('http://localhost:7001/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ input: sourceData })
       });
-      console.log('调用成功');
       const data = await response.json();
-      console.log('data',data)
-       console.log('parsedData',parsedData(data.data))
-      document.getElementById('apiData').innerHTML =parsedData(data.data);
-
-      document.getElementById('showDeepButton').style.display ='block'
       
-      console.log('Coze API返回结果:', data);
+      if (cacheKey) {
+        chrome.storage.sync.set({ [cacheKey]: data });
+      }
       
+      document.getElementById('apiData').innerHTML = parsedData(data.data);
+      document.getElementById('showDeepButton').style.display = 'block';
       return data;
     } catch (error) {
       console.error('调用Coze API出错:', error);
@@ -505,14 +522,10 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
     const likesNum = parseSocialNumber(likes) || 0;
     // 1. 修正互动率计算
     const engagementRate = Math.min(1, avgLikes / followersNum); // 限制最大为100%
-    // 2. 改进的内容稳定性计算 (确保1-100分布)
+   
     const normalizedStdDev = stdDev / (avgLikes + 1); // 防止除以0
     const likeConsistency = Math.max(1, Math.min(100, 100 * Math.exp(-0.5 * normalizedStdDev)));
-    // 使用指数衰减函数，确保：
-    // - stdDev=0 → 100分
-    // - stdDev=avg → ~60分 
-    // - stdDev=2*avg → ~37分
-    // - 永远不会低于1分
+  
     
     const popularityScore = Math.min(1, 
       (Math.log10(likesNum + 1) * 0.7 + 
@@ -670,7 +683,7 @@ resultDiv.innerHTML = `
     ${userInfo.followers ? `<p>粉丝数: ${userInfo.followers}</p>` : ''}
     ${userInfo.likes ? `<p>获赞/收藏: ${userInfo.likes}</p>` : ''}
     <h4>详细维度拆解</h4>
-      <div id="apiData">
+      ${hasCache ? `<div id="apiData">${cacheData}</div>` : `<div id="apiData">
       <style>
         .loading {
           width: 20px;
@@ -686,8 +699,8 @@ resultDiv.innerHTML = `
       </style>
       <div class="loading"></div>
       <span style="color:red">后台正在扫描分析中，数据即将呈现....</span>
-    </div>
-    <button id="showDeepButton" style="display:none">深度洞察</button>
+    </div>`}
+    <button id="showDeepButton" style="display:${hasCache ? 'block' : 'none'}">深度洞察</button>
 
     <h4>账号质量评分</h4>
     <p>综合评分: ${accountScore.score}分 ${accountScore.isLowFansHighLikes ? '(低粉高赞账号)' : ''}</p>
