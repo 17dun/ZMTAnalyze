@@ -292,7 +292,7 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
 
   
   // 封装 API 调用为异步函数
-  const fetchApiData = async (sourceData, getNew=false, type='normal') => {
+  const fetchApiData = async (sourceData, type='normal') => {
     // 生成包含类型的缓存键
     const cacheKey = sourceData.userInfo.xhsId ? `xhs-${sourceData.userInfo.xhsId}-${type}` : 
                      sourceData.userInfo.douyinId ? `dy-${sourceData.userInfo.douyinId}-${type}` : null;
@@ -300,35 +300,41 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
     const deepCacheKey = sourceData.userInfo.xhsId ? `xhs-${sourceData.userInfo.xhsId}-deep` : 
                           sourceData.userInfo.douyinId ? `dy-${sourceData.userInfo.douyinId}-deep` : null;
 
-    if (cacheKey&&!getNew) {
+    if (cacheKey) {
       // 优先检查deep缓存（仅当当前类型为normal时）
       let cachedData;
       if (type === 'normal' && deepCacheKey) {
         cachedData = await new Promise(resolve => chrome.storage.sync.get([deepCacheKey], resolve));
         if (cachedData[deepCacheKey]) {
+          console.log('使用deep缓存数据：', deepCacheKey);
           hasCache = true;
           hasDeepCache = true;
           // 补充设置cacheData
           cacheData = parsedData(cachedData[deepCacheKey].data);
           return cachedData[deepCacheKey];
         }
+        console.log('没有deep缓存');
       }
       // 未找到deep缓存时检查当前类型缓存
       cachedData = await new Promise(resolve => chrome.storage.sync.get([cacheKey], resolve));
-
+     console.log('找到正常缓存',cachedData)
       if (cachedData[cacheKey]) {
+        console.log('使用缓存数据：', cacheKey);
         hasCache = true;
         const data = cachedData[cacheKey];
         cacheData = parsedData(data.data);
-        return data;
+        document.getElementById('apiData').innerHTML = cacheData;
+        document.getElementById('showDeepButton').style.display = 'block';
+        return cacheData;
       }
+      console.log('没有缓存数据，开始请求数据：', cacheKey);
     }
 
     try {
       const response = await fetch('http://localhost:7001/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: sourceData, type })
+        body: JSON.stringify({ input: sourceData, type, cacheKey })
       });
       const data = await response.json();
 
@@ -363,6 +369,7 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
   
   
   function fetchDeepAnalysis() {
+    // 触发深度分析请求时，将type改为'deep'
     fetchApiData(sourceData,'deep').then(data => {
       document.getElementById('deepAnalysis').innerHTML = parsedData(data.data);
     }); 
@@ -760,7 +767,7 @@ resultDiv.innerHTML = `
       <span style="color:red">后台正在扫描分析中，数据即将呈现....</span>
     </div>`}
     <button id="showDeepButton" style="display:${hasCache&&!hasDeepCache ? 'block' : 'none'}">深度洞察</button>
-    ${hasCache ? `<button id="clearCacheButton" style="margin:10px 0; padding: 8px 16px; background: #ff4d4f; color: white; border: none; border-radius: 4px; cursor: pointer">清除当前账号缓存</button>`: ''}
+    ${`<button id="clearCacheButton" style="display: ${hasCache ? 'block' : 'none'}; margin:10px 0; padding: 8px 16px; background: #ff4d4f; color: white; border: none; border-radius: 4px; cursor: pointer">清除当前账号缓存</button>`}
 
     <h4>账号质量评分</h4>
     <p>综合评分: ${accountScore.score}分 ${accountScore.isLowFansHighLikes ? '(低粉高赞账号)' : ''}</p>
