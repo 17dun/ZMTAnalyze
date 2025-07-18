@@ -274,8 +274,8 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
     }))
   };
 
-  console.log(isDouyin ? '抖音原始数据:' : '小红书原始数据:', sourceData);
   let hasCache = false; 
+  let hasDeepCache = false;
   let cacheData;
   const parsedData = (data)=>{
       const markdownText = JSON.stringify(data.output_d||data.output_s, null, 2);
@@ -283,23 +283,38 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
       let parsedText = markdownText.replace(/^"|"$/g, '');
       parsedText = parsedText.replace(/- /gm, '<div style="margin-bottom: 10px;"></div>');
       parsedText = parsedText.replace(/\\n/g, '<div style="margin-bottom: 10px;"></div>');
+      // 新增：处理### 综合评价格式为h3
+      parsedText = parsedText.replace(/### (.*?)\s/g, '<h4>$1</h4>');
       parsedText = parsedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
       return parsedText;
-      
   }
 
 
   
   // 封装 API 调用为异步函数
-  const fetchApiData = async (sourceData,  type='normal') => {
+  const fetchApiData = async (sourceData, getNew=false, type='normal') => {
     // 生成包含类型的缓存键
     const cacheKey = sourceData.userInfo.xhsId ? `xhs-${sourceData.userInfo.xhsId}-${type}` : 
                      sourceData.userInfo.douyinId ? `dy-${sourceData.userInfo.douyinId}-${type}` : null;
+    // 生成deep类型缓存键（用于优先检查）
+    const deepCacheKey = sourceData.userInfo.xhsId ? `xhs-${sourceData.userInfo.xhsId}-deep` : 
+                          sourceData.userInfo.douyinId ? `dy-${sourceData.userInfo.douyinId}-deep` : null;
 
-    if (cacheKey) {
-      const cachedData = await new Promise(resolve => {
-        chrome.storage.sync.get([cacheKey], resolve);
-      });
+    if (cacheKey&&!getNew) {
+      // 优先检查deep缓存（仅当当前类型为normal时）
+      let cachedData;
+      if (type === 'normal' && deepCacheKey) {
+        cachedData = await new Promise(resolve => chrome.storage.sync.get([deepCacheKey], resolve));
+        if (cachedData[deepCacheKey]) {
+          hasCache = true;
+          hasDeepCache = true;
+          // 补充设置cacheData
+          cacheData = parsedData(cachedData[deepCacheKey].data);
+          return cachedData[deepCacheKey];
+        }
+      }
+      // 未找到deep缓存时检查当前类型缓存
+      cachedData = await new Promise(resolve => chrome.storage.sync.get([cacheKey], resolve));
 
       if (cachedData[cacheKey]) {
         hasCache = true;
@@ -744,8 +759,8 @@ resultDiv.innerHTML = `
       <div class="loading"></div>
       <span style="color:red">后台正在扫描分析中，数据即将呈现....</span>
     </div>`}
-    <button id="showDeepButton" style="display:${hasCache ? 'block' : 'none'}">深度洞察</button>
-    ${hasCache&&`<button id="clearCacheButton" style="margin:10px 0; padding: 8px 16px; background: #ff4d4f; color: white; border: none; border-radius: 4px; cursor: pointer">清除当前账号缓存</button>`}
+    <button id="showDeepButton" style="display:${hasCache&&!hasDeepCache ? 'block' : 'none'}">深度洞察</button>
+    ${hasCache ? `<button id="clearCacheButton" style="margin:10px 0; padding: 8px 16px; background: #ff4d4f; color: white; border: none; border-radius: 4px; cursor: pointer">清除当前账号缓存</button>`: ''}
 
     <h4>账号质量评分</h4>
     <p>综合评分: ${accountScore.score}分 ${accountScore.isLowFansHighLikes ? '(低粉高赞账号)' : ''}</p>
