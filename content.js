@@ -1,5 +1,4 @@
 function analyze(sg) {
-  console.log('分析开始');
   if (window.location.host.includes('xiaohongshu.com') && window.location.pathname.startsWith('/user/profile/')) {
     analyzeXiaohongshu(sg);
   } else if (window.location.host.includes('douyin.com') && window.location.pathname.startsWith('/user/')) {

@@ -27,9 +27,11 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 
 function isTargetUrl(url) {
-  return url && (
-    url.includes('xiaohongshu.com/user/profile') || 
-    url.includes('douyin.com/user')
+  if (!url) return false;
+  const parsedUrl = new URL(url);
+  return (
+    (parsedUrl.host.includes('xiaohongshu.com') && parsedUrl.pathname.startsWith('/user/profile/')) || 
+    (parsedUrl.host.includes('douyin.com') && parsedUrl.pathname.startsWith('/user/'))
   );
 }
 
