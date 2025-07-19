@@ -278,7 +278,7 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
   let hasDeepCache = false;
   let cacheData;
   const parsedData = (data)=>{
-    if(!data||!data.output_d){
+    if(!data||(!data.output_d&&!data.output_s)){
       return false;
     }
       const markdownText = JSON.stringify(data.output_d||data.output_s, null, 2);
@@ -329,6 +329,9 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
         if(cacheData){
           document.getElementById('apiData').innerHTML = cacheData;
           document.getElementById('showDeepButton').style.display = 'block';
+          document.getElementById('clearCacheButton').style.display = 'block';
+
+          
           return cacheData;
         }
       }
@@ -345,7 +348,12 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
       if(data.success){
         if (cacheKey) {
           chrome.storage.sync.set({ [cacheKey]: data });
+           hasCache = true;
+           if(type=='deep'){
+            hasDeepCache = true;
+           }
         }
+        console.log(data.data)
         document.getElementById('apiData').innerHTML = parsedData(data.data);
         document.getElementById('showDeepButton').style.display = 'block';
         return data;
@@ -669,6 +677,7 @@ const accountScore = calculateAccountScore(
   userInfo.likes || '0'
 );
 
+console.log(hasCache)
 // Now generate the HTML with the calculated score
 resultDiv.innerHTML = `
   
@@ -776,7 +785,7 @@ resultDiv.innerHTML = `
       <span style="color:red">后台正在扫描分析中，数据即将呈现....</span>
     </div>`}
     <button id="showDeepButton" style="display:${hasCache&&!hasDeepCache ? 'block' : 'none'}">深度洞察</button>
-    ${`<button id="clearCacheButton" style="display: ${hasCache ? 'block' : 'none'}; margin:10px 0; padding: 8px 16px; background: #ff4d4f; color: white; border: none; border-radius: 4px; cursor: pointer">清除当前账号缓存</button>`}
+    <button id="clearCacheButton" style="display: ${hasCache ? 'block' : 'none'}; margin:10px 0; padding: 8px 16px; background: #ff4d4f; color: white; border: none; border-radius: 4px; cursor: pointer">清除当前账号缓存</button>
 
     <h4>账号质量评分</h4>
     <p>综合评分: ${accountScore.score}分 ${accountScore.isLowFansHighLikes ? '(低粉高赞账号)' : ''}</p>
