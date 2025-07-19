@@ -278,6 +278,9 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
   let hasDeepCache = false;
   let cacheData;
   const parsedData = (data)=>{
+    if(!data||!data.output_d){
+      return false;
+    }
       const markdownText = JSON.stringify(data.output_d||data.output_s, null, 2);
       // 去除 markdownText 开头和结尾的双引号
       let parsedText = markdownText.replace(/^"|"$/g, '');
@@ -323,9 +326,11 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
         hasCache = true;
         const data = cachedData[cacheKey];
         cacheData = parsedData(data.data);
-        document.getElementById('apiData').innerHTML = cacheData;
-        document.getElementById('showDeepButton').style.display = 'block';
-        return cacheData;
+        if(cacheData){
+          document.getElementById('apiData').innerHTML = cacheData;
+          document.getElementById('showDeepButton').style.display = 'block';
+          return cacheData;
+        }
       }
       console.log('没有缓存数据，开始请求数据：', cacheKey);
     }
@@ -337,16 +342,20 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
         body: JSON.stringify({ input: sourceData, type, cacheKey })
       });
       const data = await response.json();
-
-      if (cacheKey) {
-        chrome.storage.sync.set({ [cacheKey]: data });
+      if(data.success){
+        if (cacheKey) {
+          chrome.storage.sync.set({ [cacheKey]: data });
+        }
+        document.getElementById('apiData').innerHTML = parsedData(data.data);
+        document.getElementById('showDeepButton').style.display = 'block';
+        return data;
+      }else{
+        document.getElementById('apiData').innerHTML = '部分数据分析失败';
+        console.log('error', data.error);
       }
-
-      document.getElementById('apiData').innerHTML = parsedData(data.data);
-      document.getElementById('showDeepButton').style.display = 'block';
-      return data;
     } catch (error) {
       console.error('调用Coze API出错:', error);
+      document.getElementById('apiData').innerHTML = '部分数据分析失败';
       return { error: error.message };
     }
   }
