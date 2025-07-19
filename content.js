@@ -314,7 +314,8 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
           hasDeepCache = true;
           // 补充设置cacheData
           cacheData = parsedData(cachedData[deepCacheKey].data);
-          // document.getElementById('showDeepButton').style.display ='none';
+          document.getElementById('showDeepButton').style.display ='none';
+          document.getElementById('showclearCacheButton').style.display ='block';
           return cachedData[deepCacheKey];
           
         }
@@ -325,15 +326,16 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
      console.log('找到正常缓存',cachedData)
       if (cachedData[cacheKey]) {
         console.log('使用缓存数据：', cacheKey);
-        hasCache = true;
         const data = cachedData[cacheKey];
         cacheData = parsedData(data.data);
         if(cacheData){
           document.getElementById('apiData').innerHTML = cacheData;
-          document.getElementById('showDeepButton').style.display = 'block';
+          // 直接检查深度缓存状态
+          const deepCacheKey = sourceData.userInfo.xhsId ? `xhs-${sourceData.userInfo.xhsId}-deep` : `dy-${sourceData.userInfo.douyinId}-deep`;
+          chrome.storage.sync.get([deepCacheKey], (deepCache) => {
+            document.getElementById('showDeepButton').style.display = deepCache[deepCacheKey] ? 'none' : 'block';
+          });
           document.getElementById('clearCacheButton').style.display = 'block';
-
-          
           return cacheData;
         }
       }
@@ -389,10 +391,25 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
   
   function fetchDeepAnalysis() {
     // 触发深度分析请求时，将type改为'deep'
+    const button = document.getElementById('showDeepButton'); // 假设按钮id为deepAnalysisButton
+    if (button) {
+        button.disabled = true;
+        button.textContent = '分析中...';
+    }
     fetchApiData(sourceData,'deep').then(data => {
-      // document.getElementById('deepAnalysis').innerHTML = parsedData(data.data);
-      document.getElementById('showDeepButton').style.display ='none';
-    }); 
+        const deepAnalysisElement = document.getElementById('apiData');
+        if (deepAnalysisElement) {
+            deepAnalysisElement.innerHTML = parsedData(data.data);
+           
+        } 
+        button.style.display = 'none';
+        document.getElementById('clearCacheButton').style.display = 'block';
+    }).finally(() => {
+        if (button) {
+            button.disabled = false;
+            button.textContent = '深度洞察';
+        }
+    });
   }
 
 
