@@ -314,7 +314,9 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
           hasDeepCache = true;
           // 补充设置cacheData
           cacheData = parsedData(cachedData[deepCacheKey].data);
+          // document.getElementById('showDeepButton').style.display ='none';
           return cachedData[deepCacheKey];
+          
         }
         console.log('没有deep缓存');
       }
@@ -388,7 +390,8 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
   function fetchDeepAnalysis() {
     // 触发深度分析请求时，将type改为'deep'
     fetchApiData(sourceData,'deep').then(data => {
-      document.getElementById('deepAnalysis').innerHTML = parsedData(data.data);
+      // document.getElementById('deepAnalysis').innerHTML = parsedData(data.data);
+      document.getElementById('showDeepButton').style.display ='none';
     }); 
   }
 
