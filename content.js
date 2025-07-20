@@ -199,40 +199,6 @@ function analyzeDouyin(sg) {
   // 立即开始检查页面加载
   waitForItems();
 
-  // 监听URL和路由变化
-  let lastUrl = window.location.href;
-  const observer = new MutationObserver(() => {
-    if (window.location.href !== lastUrl) {
-      lastUrl = window.location.href;
-      const resultDiv = document.querySelector('#analysis-result-container');
-      if (resultDiv) {
-        resultDiv.remove();
-      }
-      const toggleBtn = document.querySelector('#analysis-toggle-btn');
-      if (toggleBtn) {
-        toggleBtn.remove();
-      }
-    }
-  });
-
-  // 监听body属性变化（路由和URL变化通常会改变body的class或属性）
-  observer.observe(document.body, {
-    attributes: true,
-    childList: true,
-    subtree: true
-  });
-
-  // 额外监听hashchange事件（单页应用常用）
-  window.addEventListener('hashchange', () => {
-    const resultDiv = document.querySelector('#analysis-result-container');
-    if (resultDiv) {
-      resultDiv.remove();
-    }
-    const toggleBtn = document.querySelector('#analysis-toggle-btn');
-    if (toggleBtn) {
-      toggleBtn.remove();
-    }
-  });
 }
 
 async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
@@ -895,3 +861,53 @@ setTimeout(() => {
   return highlights;
 }
 
+// --- Start of new SPA navigation handling logic ---
+
+function removeAnalysisUI() {
+  const resultDiv = document.querySelector('#analysis-result-container');
+  if (resultDiv) {
+    resultDiv.remove();
+  }
+  const toggleBtn = document.querySelector('#analysis-toggle-btn');
+  if (toggleBtn) {
+    toggleBtn.remove();
+  }
+}
+
+function handlePageNavigation() {
+  // Add a delay to ensure the page content is updated after navigation
+  setTimeout(() => {
+    const isSupportedPage = (window.location.host.includes('xiaohongshu.com') && window.location.pathname.startsWith('/user/profile/')) ||
+                            (window.location.host.includes('douyin.com') && window.location.pathname.startsWith('/user/'));
+
+    if (isSupportedPage) {
+      // It's a user page, so we should re-analyze.
+      // The 'true' parameter ensures the UI is shown.
+      analyze(true);
+    } else {
+      // Not a user page, remove the UI.
+      removeAnalysisUI();
+    }
+  }, 1500); // 1.5 second delay, adjustable
+}
+
+// Use a single, robust observer for SPA navigation
+let lastUrl = window.location.href;
+const spaObserver = new MutationObserver(() => {
+  const currentUrl = window.location.href;
+  if (currentUrl !== lastUrl) {
+    lastUrl = currentUrl;
+    handlePageNavigation();
+  }
+});
+
+// Start observing the body for changes that indicate a route change
+spaObserver.observe(document.body, {
+  childList: true,
+  subtree: true
+});
+
+// Also handle popstate for browser back/forward buttons, which might not trigger the observer
+window.addEventListener('popstate', handlePageNavigation);
+
+// --- End of new SPA navigation handling logic ---
