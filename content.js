@@ -345,6 +345,9 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
       console.error('调用Coze API出错:', error);
       document.getElementById('apiData').innerHTML = '部分数据分析失败,请检查token是否正确';
       return { error: error.message };
+    } finally {
+      // Send a message to the popup to refresh the balance, regardless of success or failure
+      chrome.runtime.sendMessage({ type: 'analysisComplete' });
     }
   }
 
@@ -895,9 +898,14 @@ if (!window.spaObserverInitialized) {
                               (window.location.host.includes('douyin.com') && window.location.pathname.startsWith('/user/'));
 
       if (isSupportedPage) {
-        // It's a user page, so we should re-analyze.
-        // The 'true' parameter ensures the UI is shown.
-        analyze(true);
+        // Check if auto-analysis is enabled before running
+        chrome.storage.sync.get('autoAnalyze', (result) => {
+          if (result.autoAnalyze) {
+            // It's a user page and auto-analyze is on, so we should re-analyze.
+            // The 'true' parameter ensures the UI is shown.
+            analyze(true);
+          }
+        });
       } else {
         // Not a user page, remove the UI.
         removeAnalysisUI();

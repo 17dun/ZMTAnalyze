@@ -88,8 +88,77 @@ chrome.storage.sync.get(['autoAnalyze', 'threshold', 'apiToken'], (result) => {
   }
   if (result.apiToken !== undefined) {
     document.getElementById('apiToken').value = result.apiToken;
+    // If a token exists, automatically check the balance
+    if (result.apiToken) {
+      checkBalance();
+    }
   }
 });
+
+// --- Balance Check ---
+async function checkBalance() {
+  console.log('checkBalance');
+  const { apiToken } = await new Promise(resolve => chrome.storage.sync.get('apiToken', resolve));
+  const balanceContainer = document.getElementById('balance-container');
+  const balanceDisplay = document.getElementById('balance-display');
+  const usageDisplay = document.getElementById('usage-display');
+  const errorDisplay = document.getElementById('balance-error');
+
+  // Reset UI
+  balanceContainer.style.display = 'block';
+  balanceDisplay.textContent = 'Loading...';
+  usageDisplay.textContent = 'Loading...';
+  errorDisplay.textContent = '';
+
+  if (!apiToken) {
+    errorDisplay.textContent = 'API Token is not set.';
+    balanceDisplay.textContent = 'N/A';
+    usageDisplay.textContent = 'N/A';
+    return;
+  }
+
+  const url = 'http://localhost:7001/api/v1/balance';
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+    console.log(result)
+
+    if (!response.ok) {
+      throw new Error(result.message || `HTTP error! status: ${response.status}`);
+    }
+
+    if (result.success) {
+      balanceDisplay.textContent = result.balance;
+      usageDisplay.textContent = result.usage;
+    } else {
+      throw new Error(result.message || 'Failed to retrieve balance.');
+    }
+  } catch (error) {
+    console.error('Error checking balance:', error);
+    errorDisplay.textContent = error.message;
+    balanceDisplay.textContent = 'Error';
+    usageDisplay.textContent = 'Error';
+  }
+}
+
+document.getElementById('checkBalance').addEventListener('click', checkBalance);
+
+// Listen for messages from the content script
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === 'analysisComplete') {
+    // Check balance when analysis is complete
+    checkBalance();
+  }
+});
+
 
 // 滑块值变化事件
 document.getElementById('threshold').addEventListener('input', (e) => {
