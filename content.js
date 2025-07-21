@@ -874,51 +874,55 @@ setTimeout(() => {
 
 // --- Start of new SPA navigation handling logic ---
 
-function removeAnalysisUI() {
-  const resultDiv = document.querySelector('#analysis-result-container');
-  if (resultDiv) {
-    resultDiv.remove();
-  }
-  const toggleBtn = document.querySelector('#analysis-toggle-btn');
-  if (toggleBtn) {
-    toggleBtn.remove();
-  }
-}
+if (!window.spaObserverInitialized) {
+  window.spaObserverInitialized = true;
 
-function handlePageNavigation() {
-  // Add a delay to ensure the page content is updated after navigation
-  setTimeout(() => {
-    const isSupportedPage = (window.location.host.includes('xiaohongshu.com') && window.location.pathname.startsWith('/user/profile/')) ||
-                            (window.location.host.includes('douyin.com') && window.location.pathname.startsWith('/user/'));
-
-    if (isSupportedPage) {
-      // It's a user page, so we should re-analyze.
-      // The 'true' parameter ensures the UI is shown.
-      analyze(true);
-    } else {
-      // Not a user page, remove the UI.
-      removeAnalysisUI();
+  function removeAnalysisUI() {
+    const resultDiv = document.querySelector('#analysis-result-container');
+    if (resultDiv) {
+      resultDiv.remove();
     }
-  }, 1500); // 1.5 second delay, adjustable
-}
-
-// Use a single, robust observer for SPA navigation
-let lastUrlForObserver = window.location.href;
-const spaObserver = new MutationObserver(() => {
-  const currentUrl = window.location.href;
-  if (currentUrl !== lastUrlForObserver) {
-    lastUrlForObserver = currentUrl;
-    handlePageNavigation();
+    const toggleBtn = document.querySelector('#analysis-toggle-btn');
+    if (toggleBtn) {
+      toggleBtn.remove();
+    }
   }
-});
 
-// Start observing the body for changes that indicate a route change
-spaObserver.observe(document.body, {
-  childList: true,
-  subtree: true
-});
+  function handlePageNavigation() {
+    // Add a delay to ensure the page content is updated after navigation
+    setTimeout(() => {
+      const isSupportedPage = (window.location.host.includes('xiaohongshu.com') && window.location.pathname.startsWith('/user/profile/')) ||
+                              (window.location.host.includes('douyin.com') && window.location.pathname.startsWith('/user/'));
 
-// Also handle popstate for browser back/forward buttons, which might not trigger the observer
-window.addEventListener('popstate', handlePageNavigation);
+      if (isSupportedPage) {
+        // It's a user page, so we should re-analyze.
+        // The 'true' parameter ensures the UI is shown.
+        analyze(true);
+      } else {
+        // Not a user page, remove the UI.
+        removeAnalysisUI();
+      }
+    }, 1500); // 1.5 second delay, adjustable
+  }
+
+  // Use a single, robust observer for SPA navigation
+  let lastUrlForObserver = window.location.href;
+  const spaObserver = new MutationObserver(() => {
+    const currentUrl = window.location.href;
+    if (currentUrl !== lastUrlForObserver) {
+      lastUrlForObserver = currentUrl;
+      handlePageNavigation();
+    }
+  });
+
+  // Start observing the body for changes that indicate a route change
+  spaObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  // Also handle popstate for browser back/forward buttons, which might not trigger the observer
+  window.addEventListener('popstate', handlePageNavigation);
+}
 
 // --- End of new SPA navigation handling logic ---
