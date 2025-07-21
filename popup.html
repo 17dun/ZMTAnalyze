@@ -178,6 +178,21 @@
       margin-top: 5px;
       font-size: 14px;
     }
+
+    .input-container {
+      margin-top: 15px;
+    }
+
+    .input-container label {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .input-container input {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    }
   </style>
 </head>
 
@@ -200,6 +215,12 @@
       <input type="range" id="threshold" min="0" max="100" value="50">
       <span class="value-display" id="threshold-value">50%</span>
     </div>
+
+    <div class="input-container">
+      <label for="apiToken">Coze API Token</label>
+      <input type="text" id="apiToken" placeholder="请输入你的 Coze API Token">
+    </div>
+
     <div class="divider"></div>
     <button id="analyze" style="margin-bottom: 15px;">立即分析</button>
 

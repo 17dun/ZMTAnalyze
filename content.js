@@ -308,9 +308,20 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
     }
 
     try {
+      // Get the token from storage before making the API call
+      const { apiToken } = await new Promise(resolve => chrome.storage.sync.get('apiToken', resolve));
+
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+
+      if (apiToken) {
+        headers['Authorization'] = `Bearer ${apiToken}`;
+      }
+
       const response = await fetch('http://localhost:7001/run', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify({ input: sourceData, type, cacheKey })
       });
       const data = await response.json();
@@ -327,12 +338,12 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
         document.getElementById('showDeepButton').style.display = 'block';
         return data;
       }else{
-        document.getElementById('apiData').innerHTML = '部分数据分析失败';
+        document.getElementById('apiData').innerHTML = '部分数据分析失败,请检查token是否正确';
         console.log('error', data.error);
       }
     } catch (error) {
       console.error('调用Coze API出错:', error);
-      document.getElementById('apiData').innerHTML = '部分数据分析失败';
+      document.getElementById('apiData').innerHTML = '部分数据分析失败,请检查token是否正确';
       return { error: error.message };
     }
   }
@@ -892,11 +903,11 @@ function handlePageNavigation() {
 }
 
 // Use a single, robust observer for SPA navigation
-let lastUrl = window.location.href;
+let lastUrlForObserver = window.location.href;
 const spaObserver = new MutationObserver(() => {
   const currentUrl = window.location.href;
-  if (currentUrl !== lastUrl) {
-    lastUrl = currentUrl;
+  if (currentUrl !== lastUrlForObserver) {
+    lastUrlForObserver = currentUrl;
     handlePageNavigation();
   }
 });

@@ -38,10 +38,12 @@ document.getElementById('analyze').addEventListener('click', async () => {
 function saveSettings() {
   const autoAnalyze = document.getElementById('autoAnalyze').checked;
   const threshold = document.getElementById('threshold').value;
+  const apiToken = document.getElementById('apiToken').value;
   
   chrome.storage.sync.set({
     autoAnalyze,
-    threshold
+    threshold,
+    apiToken
   }, () => {
     
   });
@@ -56,8 +58,11 @@ document.getElementById('threshold').addEventListener('input', (e) => {
   saveSettings();
 });
 
+// API Token 输入事件
+document.getElementById('apiToken').addEventListener('input', saveSettings);
+
 // 加载保存的设置
-chrome.storage.sync.get(['autoAnalyze', 'threshold'], (result) => {
+chrome.storage.sync.get(['autoAnalyze', 'threshold', 'apiToken'], (result) => {
   if (result.autoAnalyze !== undefined) {
     document.getElementById('autoAnalyze').checked = result.autoAnalyze;
     // 如果启用了自动分析，执行分析逻辑
@@ -80,6 +85,9 @@ chrome.storage.sync.get(['autoAnalyze', 'threshold'], (result) => {
   if (result.threshold !== undefined) {
     document.getElementById('threshold').value = result.threshold;
     document.querySelector('.value-display').textContent = `${result.threshold}%`;
+  }
+  if (result.apiToken !== undefined) {
+    document.getElementById('apiToken').value = result.apiToken;
   }
 });
 
