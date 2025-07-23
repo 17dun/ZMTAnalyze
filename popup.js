@@ -117,7 +117,7 @@ async function checkBalance() {
     return;
   }
 
-  const url = 'http://localhost:7001/api/v1/balance';
+  const url = 'https://zmt-server.vercel.app/api/v1/balance';
 
   try {
     const response = await fetch(url, {

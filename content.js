@@ -319,7 +319,7 @@ async function processAnalysisResults(items, likeCounts, userInfo = {}, sg) {
         headers['Authorization'] = `Bearer ${apiToken}`;
       }
 
-      const response = await fetch('http://localhost:7001/run', {
+      const response = await fetch('https://zmt-server.vercel.app/api/run', {
         method: 'POST',
         headers: headers,
         body: JSON.stringify({ input: sourceData, type, cacheKey })
